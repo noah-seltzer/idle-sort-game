@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorting Algorithm Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+      body {
+        @apply font-inter bg-gray-50 text-gray-800 antialiased;
+      }
+      .container {
+        @apply max-w-7xl mx-auto px-4 py-10;
+      }
+      #visualizationCanvas {
+        @apply bg-white border border-gray-200 rounded-xl shadow-lg;
+      }
+      .controls-container {
+        @apply mt-8 bg-white p-6 rounded-xl shadow-md border border-gray-200;
+      }
+      .controls {
+        @apply flex flex-wrap justify-center gap-6;
+      }
+      .control-item {
+        @apply flex flex-col sm:flex-row items-center gap-2 sm:gap-4;
+      }
+      .control-label {
+        @apply font-medium text-gray-700 block mb-1 sm:mb-0 text-sm sm:text-base;
+      }
+      .controls button, .controls input, .controls select {
+        @apply font-inter px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm;
+      }
+      .controls button {
+        @apply bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer transition-colors duration-300;
+      }
+      .controls button:disabled {
+        @apply bg-gray-400 cursor-not-allowed hover:bg-gray-400;
+      }
+      .controls button:hover {
+        @apply bg-blue-700;
+      }
+      .controls input[type="range"] {
+        @apply w-48;
+      }
+      .controls input[type="number"] {
+        @apply w-24 text-center;
+      }
+      .controls select {
+        @apply max-w-sm;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        @apply bg-gray-200 rounded-full h-1;
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        @apply bg-blue-600 h-4 w-4 rounded-full cursor-pointer;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+      }
+      input[type="range"]::-moz-range-thumb {
+        @apply bg-blue-600 h-4 w-4 rounded-full cursor-pointer;
+         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        border: none;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover,
+      input[type="range"]::-moz-range-thumb:hover {
+        @apply bg-blue-700;
+      }
+      input[type="range"]:focus {
+        @apply ring-2 ring-blue-500 ring-opacity-50;
+        outline: none;
+      }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 flex flex-col items-center">
+    <div class="container">
+        <h1 class="font-['Press_Start_2P'] text-4xl mb-8 text-blue-700 text-center pl-4">Sorting Algorithm Visualizer</h1>
+        <canvas id="visualizationCanvas" width="800" height="400" class="bg-white border border-gray-300 rounded-lg shadow-md"></canvas>
+        <div class="controls-container pl-4">
+            <div class="controls">
+                <div class="control-item">
+                    <label for="sizeInput" class="control-label">Array Size:</label>
+                    <input type="number" id="sizeInput" min="5" max="100" value="20" placeholder="Size" class="text-center">
+                </div>
+                <div class="control-item">
+                    <label for="speedSlider" class="control-label">Speed:</label>
+                    <input type="range" id="speedSlider" min="1" max="100" value="50">
+                    <span id="speedValue" class="text-gray-600 text-sm ml-2">Medium</span>
+                </div>
+                <div class="control-item">
+                    <label for="algorithmSelect" class="control-label">Algorithm:</label>
+                    <select id="algorithmSelect">
+                        <option value="bubbleSort">Bubble Sort</option>
+                        <option value="selectionSort">Selection Sort</option>
+                        <option value="insertionSort">Insertion Sort</option>
+                        <option value="quickSort">Quick Sort</option>
+                        <option value="mergeSort">Merge Sort</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <button id="startButton">Start Sort</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    const canvas = document.getElementById('visualizationCanvas');
+    const ctx = canvas.getContext('2d');
+    const sizeInput = document.getElementById('sizeInput');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValueDisplay = document.getElementById('speedValue');
+    const algorithmSelect = document.getElementById('algorithmSelect');
+    const startButton = document.getElementById('startButton');
+    const controls = [sizeInput, speedSlider, algorithmSelect, startButton];
+    let arraySize = parseInt(sizeInput.value);
+    let speed = 100 - parseInt(speedSlider.value);
+    let selectedAlgorithm = algorithmSelect.value;
+    let arr = generateRandomArray(arraySize);
+    let isSorting = false;
+    function updateSpeedDisplay(speedValue) {
+        let speedText = "Medium";
+        if (speedValue <= 25) {
+            speedText = "Fast";
+        } else if (speedValue >= 75) {
+            speedText = "Slow";
+        } else {
+            speedText = "Medium";
+        }
+        speedValueDisplay.textContent = speedText;
+    }
+    function generateRandomArray(size) {
+        const array = [];
+        for (let i = 0; i < size; i++) {
+            array.push(Math.floor(Math.random() * 100) + 1);
+        }
+        return array;
+    }
+    function drawArray(array, highlightIndices = []) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const barWidth = canvas.width / array.length;
+        for (let i = 0; i < array.length; i++) {
+            const barHeight = array[i] / 100 * canvas.height;
+            ctx.fillStyle = highlightIndices.includes(i) ? '#F44336' : '#3B82F6';
+            ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth, barHeight);
+        }
+    }
+    function swap(array, i, j) {
+        let temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    async function bubbleSort(array) {
+        for (let i = 0; i < array.length; i++) {
+            for (let j = 0; j < array.length - i - 1; j++) {
+                if (array[j] > array[j + 1]) {
+                    swap(array, j, j + 1);
+                    drawArray(array, [j, j + 1]);
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+            }
+        }
+    }
+    async function selectionSort(array) {
+        for (let i = 0; i < array.length; i++) {
+            let minIndex = i;
+            for (let j = i + 1; j < array.length; j++) {
+                if (array[j] < array[minIndex]) {
+                    minIndex = j;
+                }
+            }
+            if (minIndex !== i) {
+                swap(array, i, minIndex);
+                drawArray(array, [i, minIndex]);
+                await new Promise(resolve => setTimeout(resolve, speed));
+            }
+        }
+    }
+    async function insertionSort(array) {
+        for (let i = 1; i < array.length; i++) {
+            let key = array[i];
+            let j = i - 1;
+            while (j >= 0 && array[j] > key) {
+                array[j + 1] = array[j];
+                drawArray(array, [j, j + 1]);
+                await new Promise(resolve => setTimeout(resolve, speed));
+                j = j - 1;
+            }
+            array[j + 1] = key;
+        }
+    }
+    async function quickSort(array, low, high) {
+        if (low < high) {
+            let pi = await partition(array, low, high);
+            await quickSort(array, low, pi - 1);
+            await quickSort(array, pi + 1, high);
+        }
+    }
+    async function partition(array, low, high) {
+        let pivot = array[high];
+        let i = (low - 1);
+        for (let j = low; j < high; j++) {
+            if (array[j] < pivot) {
+                i++;
+                swap(array, i, j);
+                drawArray(array, [i, j]);
+                await new Promise(resolve => setTimeout(resolve, speed));
+            }
+        }
+        swap(array, i + 1, high);
+        drawArray(array, [i + 1, high]);
+        await new Promise(resolve => setTimeout(resolve, speed));
+        return (i + 1);
+    }
+    async function mergeSort(array, l, r) {
+        if (l < r) {
+            let m = Math.floor((l + r) / 2);
+            await mergeSort(array, l, m);
+            await mergeSort(array, m + 1, r);
+            await merge(array, l, m, r);
+        }
+    }
+    async function merge(array, l, m, r) {
+        let n1 = m - l + 1;
+        let n2 = r - m;
+        let L = new Array(n1);
+        let R = new Array(n2);
+        for (let i = 0; i < n1; i++)
+            L[i] = array[l + i];
+        for (let j = 0; j < n2; j++)
+            R[j] = array[m + 1 + j];
+        let i = 0, j = 0, k = l;
+        while (i < n1 && j < n2) {
+            if (L[i] <= R[j]) {
+                array[k] = L[i];
+                drawArray(array, [k]);
+                await new Promise(resolve => setTimeout(resolve, speed));
+                i++;
+            } else {
+                array[k] = R[j];
+                drawArray(array, [k]);
+                await new Promise(resolve => setTimeout(resolve, speed));
+                j++;
+            }
+            k++;
+        }
+        while (i < n1) {
+            array[k] = L[i];
+            drawArray(array, [k]);
+            await new Promise(resolve => setTimeout(resolve, speed));
+            i++;
+            k++;
+        }
+        while (j < n2) {
+            array[k] = R[j];
+            drawArray(array, [k]);
+            await new Promise(resolve => setTimeout(resolve, speed));
+            j++;
+            k++;
+        }
+    }
+    startButton.addEventListener('click', async () => {
+        if (isSorting) return;
+        isSorting = true;
+        startButton.textContent = "Sorting...";
+        controls.forEach(control => control.disabled = true);
+        arraySize = parseInt(sizeInput.value);
+        speed = 100 - parseInt(speedSlider.value);
+        selectedAlgorithm = algorithmSelect.value;
+        arr = generateRandomArray(arraySize);
+        drawArray(arr);
+        switch (selectedAlgorithm) {
+            case 'bubbleSort':
+                await bubbleSort(arr.slice());
+                break;
+            case 'selectionSort':
+                await selectionSort(arr.slice());
+                break;
+            case 'insertionSort':
+                await insertionSort(arr.slice());
+                break;
+            case 'quickSort':
+                await quickSort(arr.slice(), 0, arr.length - 1);
+                break;
+            case 'mergeSort':
+                await mergeSort(arr.slice(), 0, arr.length - 1);
+                break;
+        }
+        isSorting = false;
+        startButton.textContent = "Start Sort";
+        controls.forEach(control => control.disabled = false);
+    });
+    sizeInput.addEventListener('change', () => {
+        arraySize = parseInt(sizeInput.value);
+        arr = generateRandomArray(arraySize);
+        drawArray(arr);
+    });
+    speedSlider.addEventListener('input', () => {
+        speed = 100 - parseInt(speedSlider.value);
+        updateSpeedDisplay(parseInt(speedSlider.value));
+    });
+    updateSpeedDisplay(parseInt(speedSlider.value));
+    drawArray(arr);
+    </script>
+</body>
+</html>

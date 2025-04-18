@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorting Algorithm Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+     body {
+       @apply font-inter bg-gray-50 text-gray-800 antialiased;
+     }
+     .container {
+       @apply max-w-7xl mx-auto px-4 py-10;
+     }
+     #visualizationCanvas {
+       @apply bg-white border border-gray-200 rounded-xl shadow-lg cursor-grab;
+     }
+     #visualizationCanvas.dragging {
+        @apply cursor-grabbing;
+     }
+     .controls-container {
+       @apply mt-8 bg-white p-6 rounded-xl shadow-md border border-gray-200;
+     }
+     .controls {
+       @apply flex flex-wrap justify-center gap-6;
+     }
+     .control-item {
+       @apply flex flex-col sm:flex-row items-center gap-2 sm:gap-4;
+     }
+     .control-label {
+       @apply font-medium text-gray-700 block mb-1 sm:mb-0 text-sm sm:text-base;
+     }
+     .controls button, .controls input, .controls select {
+       @apply font-inter px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm;
+     }
+     .controls button {
+       @apply bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer transition-colors duration-300;
+     }
+     .controls button:disabled {
+       @apply bg-gray-400 cursor-not-allowed hover:bg-gray-400;
+     }
+     .controls button:hover {
+       @apply bg-blue-700;
+     }
+     .controls input[type="range"] {
+       @apply w-48;
+     }
+     .controls input[type="number"] {
+       @apply w-24 text-center;
+     }
+     .controls select {
+       @apply max-w-sm;
+     }
+     input[type="range"] {
+       -webkit-appearance: none;
+       appearance: none;
+       @apply bg-gray-200 rounded-full h-1;
+       outline: none;
+     }
+     input[type="range"]::-webkit-slider-thumb {
+       -webkit-appearance: none;
+       appearance: none;
+       @apply bg-blue-600 h-4 w-4 rounded-full cursor-pointer;
+       box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+     }
+     input[type="range"]::-moz-range-thumb {
+       @apply bg-blue-600 h-4 w-4 rounded-full cursor-pointer;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+       border: none;
+     }
+     input[type="range"]::-webkit-slider-thumb:hover,
+     input[type="range"]::-moz-range-thumb:hover {
+       @apply bg-blue-700;
+     }
+     input[type="range"]:focus {
+       @apply ring-2 ring-blue-500 ring-opacity-50;
+       outline: none;
+     }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 flex flex-col items-center">
+    <div class="container">
+        <h1 class="font-['Press_Start_2P'] text-4xl mb-8 text-blue-700 text-center pl-4">Sorting Algorithm Visualizer</h1>
+        <canvas id="visualizationCanvas" width="800" height="400"></canvas>
+        <div class="controls-container pl-4">
+            <div class="controls">
+                <div class="control-item">
+                    <label for="sizeInput" class="control-label">Array Size:</label>
+                    <input type="number" id="sizeInput" min="5" max="100" value="20" placeholder="Size" class="text-center">
+                </div>
+                <div class="control-item">
+                    <label for="speedSlider" class="control-label">Speed:</label>
+                    <input type="range" id="speedSlider" min="1" max="100" value="50">
+                    <span id="speedValue" class="text-gray-600 text-sm ml-2">Medium</span>
+                </div>
+                <div class="control-item">
+                    <label for="algorithmSelect" class="control-label">Algorithm:</label>
+                    <select id="algorithmSelect">
+                        <option value="bubbleSort">Bubble Sort</option>
+                        <option value="selectionSort">Selection Sort</option>
+                        <option value="insertionSort">Insertion Sort</option>
+                        <option value="quickSort">Quick Sort</option>
+                        <option value="mergeSort">Merge Sort</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <button id="startButton">Start Sort</button>
+                     <button id="resetButton" class="ml-2 bg-gray-500 hover:bg-gray-600">Reset Array</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // --- DOM Elements ---
+    const canvas = document.getElementById('visualizationCanvas');
+    const ctx = canvas.getContext('2d');
+    const sizeInput = document.getElementById('sizeInput');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValueDisplay = document.getElementById('speedValue');
+    const algorithmSelect = document.getElementById('algorithmSelect');
+    const startButton = document.getElementById('startButton');
+    const resetButton = document.getElementById('resetButton');
+    const controls = [sizeInput, speedSlider, algorithmSelect, startButton, resetButton];
+
+    // --- State Variables ---
+    let arraySize = parseInt(sizeInput.value);
+    let speed = 50; // Delay in ms, will be updated by updateSpeedDisplay
+    let selectedAlgorithm = algorithmSelect.value;
+    let arr = [];
+    let isSorting = false;
+    let isDragging = false;
+    let draggedIndex = -1;
+    let draggedValue = null;
+    let dragCurrentX = 0;
+
+    // --- Constants ---
+    const MAX_ARRAY_VALUE = 100;
+    const BAR_HIGHLIGHT_COLOR = '#F44336'; // Red
+    const BAR_DEFAULT_COLOR = '#3B82F6'; // Blue
+    const BAR_DRAG_COLOR = '#FF9800'; // Orange
+    const SORT_ABORT_ERROR = "Sorting aborted"; // Constant for error message
+
+    // --- Helper Functions ---
+
+    function updateSpeedDisplay(value) {
+        let speedText = "Medium";
+        if (value >= 75) speedText = "Fast";
+        else if (value <= 25) speedText = "Slow";
+        speedValueDisplay.textContent = speedText;
+        // Map slider [1, 100] to delay [~10ms, 500ms]. More intuitive mapping.
+        // Higher value on slider means smaller delay (faster animation)
+        // Using an exponential-like scale makes speed changes more noticeable at slower speeds
+        const minDelay = 10;
+        const maxDelay = 500;
+        // Normalize value to 0-1 range, then invert it because higher slider = lower delay
+        const normalizedInvertedValue = (100 - value) / 99;
+        speed = minDelay + Math.pow(normalizedInvertedValue, 2) * (maxDelay - minDelay);
+        speed = Math.max(minDelay, Math.floor(speed)); // Ensure minimum delay
+    }
+
+    function generateRandomArray(size) {
+        const array = [];
+        for (let i = 0; i < size; i++) {
+            array.push(Math.floor(Math.random() * MAX_ARRAY_VALUE) + 1);
+        }
+        return array;
+    }
+
+    function drawArray(array, highlightIndices = [], currentDraggedIndex = -1, currentDraggedValue = null, currentMouseX = 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!array || array.length === 0) return;
+
+        const barWidth = canvas.width / array.length;
+        const canvasHeight = canvas.height * 0.95; // Use 95% height for padding
+
+        for (let i = 0; i < array.length; i++) {
+            if (i === currentDraggedIndex) continue; // Skip drawing original position of dragged bar
+
+            const barHeight = (array[i] / MAX_ARRAY_VALUE) * canvasHeight;
+            const x = i * barWidth;
+            const y = canvas.height - barHeight;
+
+            ctx.fillStyle = highlightIndices.includes(i) ? BAR_HIGHLIGHT_COLOR : BAR_DEFAULT_COLOR;
+            ctx.fillRect(x, y, barWidth > 1 ? barWidth - 1 : barWidth, barHeight); // Gap if wide enough
+        }
+
+        // Draw the currently dragged bar separately
+        if (currentDraggedIndex !== -1 && currentDraggedValue !== null) {
+            const barHeight = (currentDraggedValue / MAX_ARRAY_VALUE) * canvasHeight;
+            const x = currentMouseX - barWidth / 2; // Center the bar on the mouse
+            const y = canvas.height - barHeight;
+            ctx.fillStyle = BAR_DRAG_COLOR;
+            ctx.globalAlpha = 0.7;
+            ctx.fillRect(x, y, barWidth > 1 ? barWidth - 1 : barWidth, barHeight);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function swap(array, i, j) {
+        [array[i], array[j]] = [array[j], array[i]]; // Use array destructuring for swap
+    }
+
+    // NEW: Unified visualization step (check, draw, delay)
+    async function visualizeStep(array, highlights = []) {
+        if (!isSorting) throw new Error(SORT_ABORT_ERROR); // Check for abort
+        drawArray(array, highlights);                      // Draw current state
+        await new Promise(resolve => setTimeout(resolve, speed)); // Wait
+    }
+
+     // NEW: Toggle controls enable/disable state
+     function setControlsDisabled(disabled) {
+         controls.forEach(control => control.disabled = disabled);
+         startButton.textContent = disabled ? "Sorting..." : "Start Sort";
+         canvas.style.cursor = disabled ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab');
+     }
+
+     // NEW: Calculate bar index from X coordinate
+     function getBarIndexFromX(mouseX, currentArray) {
+         if (!currentArray || currentArray.length === 0) return -1;
+         const barWidth = canvas.width / currentArray.length;
+         const clampedX = Math.min(canvas.width - 1, Math.max(0, mouseX));
+         return Math.min(currentArray.length - 1, Math.max(0, Math.floor(clampedX / barWidth)));
+     }
+
+    // --- Sorting Algorithms (Refactored) ---
+
+    async function bubbleSort(array) {
+        // No need for local copy if main loop manages it
+        for (let i = 0; i < array.length; i++) {
+            for (let j = 0; j < array.length - i - 1; j++) {
+                if (array[j] > array[j + 1]) {
+                    swap(array, j, j + 1);
+                    await visualizeStep(array, [j, j + 1]); // Use helper
+                } else {
+                    // Optional: Visualize comparison even if no swap
+                    await visualizeStep(array, [j, j + 1]);
+                }
+            }
+        }
+    }
+
+    async function selectionSort(array) {
+        for (let i = 0; i < array.length; i++) {
+            let minIndex = i;
+            // Highlight the element being placed
+             await visualizeStep(array, [i]);
+            for (let j = i + 1; j < array.length; j++) {
+                if (array[j] < array[minIndex]) {
+                    minIndex = j;
+                }
+                 // Highlight scanning element (j) and current minimum (minIndex)
+                 await visualizeStep(array, [i, j, minIndex]);
+            }
+            if (minIndex !== i) {
+                swap(array, i, minIndex);
+                 // Highlight the swap
+                 await visualizeStep(array, [i, minIndex]);
+            }
+        }
+    }
+
+    async function insertionSort(array) {
+        for (let i = 1; i < array.length; i++) {
+            let key = array[i];
+            let j = i - 1;
+            // Highlight key being considered and its initial position
+             await visualizeStep(array, [i]);
+
+            while (j >= 0 && array[j] > key) {
+                array[j + 1] = array[j];
+                 // Highlight the shift
+                 await visualizeStep(array, [j, j + 1]);
+                j = j - 1;
+            }
+            array[j + 1] = key;
+             // Highlight where the key was placed
+             await visualizeStep(array, [j + 1]);
+        }
+    }
+
+    // --- Quick Sort ---
+    async function partition(array, low, high) {
+        let pivot = array[high];
+        let i = low - 1; // index of smaller element
+        await visualizeStep(array, [high]); // Highlight pivot
+
+        for (let j = low; j < high; j++) {
+             // Highlight scanning (j) and potential swap position (i+1)
+            await visualizeStep(array, [j, high, i + 1]);
+            if (array[j] < pivot) {
+                i++;
+                swap(array, i, j);
+                 // Highlight swap
+                 await visualizeStep(array, [i, j, high]);
+            }
+        }
+        swap(array, i + 1, high);
+        await visualizeStep(array, [i + 1, high]); // Highlight final pivot swap
+        return i + 1;
+    }
+
+    async function quickSortRecursive(array, low, high) {
+        // Base case and abort check are handled by visualizeStep called within partition/recursive calls
+        if (low < high) {
+            let pi = await partition(array, low, high);
+            await quickSortRecursive(array, low, pi - 1);
+            await quickSortRecursive(array, pi + 1, high);
+        }
+         // No explicit abort check needed here as visualizeStep handles it
+    }
+
+    async function quickSort(array) {
+        await quickSortRecursive(array, 0, array.length - 1);
+        // Final sweep visualization can be added here if desired
+    }
+
+    // --- Merge Sort ---
+    async function merge(array, l, m, r) {
+        let n1 = m - l + 1;
+        let n2 = r - m;
+        let L = new Array(n1);
+        let R = new Array(n2);
+
+        for (let i = 0; i < n1; i++) L[i] = array[l + i];
+        for (let j = 0; j < n2; j++) R[j] = array[m + 1 + j];
+
+        let i = 0, j = 0, k = l;
+        while (i < n1 && j < n2) {
+             // Highlight elements being compared from subarrays and target position k
+            await visualizeStep(array, [l + i, m + 1 + j, k]);
+            if (L[i] <= R[j]) {
+                array[k] = L[i];
+                i++;
+            } else {
+                array[k] = R[j];
+                j++;
+            }
+            k++;
+        }
+
+        while (i < n1) {
+            await visualizeStep(array, [l + i, k]);
+            array[k] = L[i];
+            i++; k++;
+        }
+        while (j < n2) {
+            await visualizeStep(array, [m + 1 + j, k]);
+            array[k] = R[j];
+            j++; k++;
+        }
+    }
+
+    async function mergeSortRecursive(array, l, r) {
+        if (l < r) {
+            let m = Math.floor((l + r) / 2);
+            await mergeSortRecursive(array, l, m);
+            await mergeSortRecursive(array, m + 1, r);
+            await merge(array, l, m, r);
+        }
+         // No explicit abort check needed here as visualizeStep handles it
+    }
+
+    async function mergeSort(array) {
+        await mergeSortRecursive(array, 0, array.length - 1);
+         // Final sweep visualization can be added here if desired
+    }
+
+    // --- Reset and Initialization ---
+    function resetArray() {
+        if (isSorting) {
+             // If we allow reset during sort, we need to signal abortion
+             isSorting = false; // Force stop
+             console.log("Sorting stopped by reset.");
+        }
+        arr = generateRandomArray(arraySize);
+        isDragging = false;
+        draggedIndex = -1;
+        draggedValue = null;
+        canvas.classList.remove('dragging');
+        setControlsDisabled(false); // Enable controls
+        drawArray(arr); // Draw the new array
+    }
+
+    // --- Event Handlers ---
+    canvas.addEventListener('mousedown', (e) => {
+        if (isSorting || isDragging) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const clickedIndex = getBarIndexFromX(mouseX, arr); // Use helper
+
+        if (clickedIndex !== -1) {
+            const barHeight = (arr[clickedIndex] / MAX_ARRAY_VALUE) * (canvas.height * 0.95);
+            const barY = canvas.height - barHeight;
+
+            if (mouseY >= barY) { // Clicked within bar height
+                isDragging = true;
+                draggedIndex = clickedIndex;
+                draggedValue = arr[draggedIndex];
+                dragCurrentX = mouseX;
+                canvas.classList.add('dragging');
+                canvas.style.cursor = 'grabbing'; // Explicit cursor change
+                // Draw immediately showing the bar being picked up
+                drawArray(arr, [], draggedIndex, draggedValue, dragCurrentX);
+            }
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        dragCurrentX = e.clientX - rect.left;
+        // Redraw frequently showing bar following mouse
+        drawArray(arr, [], draggedIndex, draggedValue, dragCurrentX);
+    });
+
+    window.addEventListener('mouseup', (e) => { // Listen on window
+        if (!isDragging) return;
+
+        const dropIndex = getBarIndexFromX(dragCurrentX, arr); // Use helper
+
+        if (draggedIndex !== dropIndex && draggedIndex !== -1 && dropIndex !== -1) {
+            // Update the actual array: remove from old, insert at new
+            const valueToMove = arr.splice(draggedIndex, 1)[0];
+            arr.splice(dropIndex, 0, valueToMove);
+        }
+
+        // Reset dragging state
+        isDragging = false;
+        draggedIndex = -1;
+        draggedValue = null;
+        canvas.classList.remove('dragging');
+        canvas.style.cursor = isSorting ? 'not-allowed' : 'grab'; // Reset cursor based on sorting state
+
+        // Final redraw of the modified array
+        drawArray(arr);
+    });
+
+    startButton.addEventListener('click', async () => {
+        if (isSorting) return;
+        isSorting = true;
+        setControlsDisabled(true); // Disable controls using helper
+
+        // Work on a copy for sorting, so drag/drop state doesn't interfere directly
+        let arrayToSort = [...arr];
+
+        // Re-read values just before starting
+        updateSpeedDisplay(parseInt(speedSlider.value)); // Update speed if changed
+        selectedAlgorithm = algorithmSelect.value;
+
+        drawArray(arrayToSort); // Draw current state before sort starts
+
+        try {
+            switch (selectedAlgorithm) {
+                case 'bubbleSort':    await bubbleSort(arrayToSort); break;
+                case 'selectionSort': await selectionSort(arrayToSort); break;
+                case 'insertionSort': await insertionSort(arrayToSort); break;
+                case 'quickSort':     await quickSort(arrayToSort); break;
+                case 'mergeSort':     await mergeSort(arrayToSort); break;
+            }
+
+            // If sorting completed successfully (wasn't aborted), visualize sorted state and update main array
+            if (isSorting) {
+                arr = [...arrayToSort]; // Update the main array
+                 // Final "sorted" visualization (all bars default color)
+                 drawArray(arr);
+                 // Optional: Add a brief green sweep animation
+                 for (let i = 0; i < arr.length; i++) {
+                     drawArray(arr, [i]); // Highlight briefly
+                     await new Promise(resolve => setTimeout(resolve, 5)); // Very short delay
+                 }
+                 drawArray(arr); // Back to default colors
+            }
+        } catch (e) {
+            if (e.message === SORT_ABORT_ERROR) {
+                console.log("Sorting aborted by user action (e.g., reset).");
+                 // Draw the array in its current (partially sorted) state
+                 // The main `arr` wasn't updated, draw the state of `arrayToSort` where it stopped
+                 drawArray(arrayToSort);
+                 // Keep the partially sorted state in the main array? Or revert? Let's keep it.
+                 arr = [...arrayToSort];
+            } else {
+                console.error("Sorting algorithm error:", e);
+                // Draw the original array state in case of unexpected error
+                drawArray(arr);
+            }
+        } finally {
+             // Ensure sorting flag and controls are reset regardless of success/failure/abort
+             isSorting = false;
+             setControlsDisabled(false); // Re-enable controls
+        }
+    });
+
+    sizeInput.addEventListener('change', () => {
+        if (isSorting) return;
+        let newSize = parseInt(sizeInput.value);
+        // Clamp size
+        newSize = Math.max(5, Math.min(100, newSize));
+        sizeInput.value = newSize; // Update input field if clamped
+        if (newSize !== arraySize) {
+             arraySize = newSize;
+             resetArray(); // Generate a new array with the new size
+        }
+    });
+
+    speedSlider.addEventListener('input', () => {
+        updateSpeedDisplay(parseInt(speedSlider.value));
+    });
+
+    resetButton.addEventListener('click', resetArray);
+
+    // --- Initial Setup ---
+    updateSpeedDisplay(parseInt(speedSlider.value));
+    resetArray(); // Generate initial array and draw
+    setControlsDisabled(false); // Ensure controls are enabled initially
+
+    </script>
+</body>
+</html>
