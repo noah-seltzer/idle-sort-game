@@ -7,6 +7,13 @@ settings:
 importers:
 
   .:
+    dependencies:
+      konva:
+        specifier: ^9.3.20
+        version: 9.3.20
+      svelte-konva:
+        specifier: ^0.3.1
+        version: 0.3.1(konva@9.3.20)(svelte@5.27.0)
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.0.3
@@ -392,6 +399,9 @@ packages:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
 
+  konva@9.3.20:
+    resolution: {integrity: sha512-7XPD/YtgfzC8b1c7z0hhY5TF1IO/pBYNa29zMTA2PeBaqI0n5YplUeo4JRuRcljeAF8lWtW65jePZZF7064c8w==}
+
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
 
@@ -445,6 +455,12 @@ packages:
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
+
+  svelte-konva@0.3.1:
+    resolution: {integrity: sha512-nbQ7S3NhtgrwcEMXS1LSYLbF21BZ6iHN6yvgrYUUnmFdXsSXmAN+I1/Ip7qQ6MQxVTTcSO5lGpGxEuwRg2q3hw==}
+    peerDependencies:
+      konva: 8 - 9
+      svelte: 3 - 4
 
   svelte@5.27.0:
     resolution: {integrity: sha512-Uai13Ydt1ZE+bUHme6b9U38PCYVNCqBRoBMkUKbFbKiD7kHWjdUUrklYAQZJxyKK81qII4mrBwe/YmvEMSlC9w==}
@@ -764,6 +780,8 @@ snapshots:
 
   kleur@4.1.5: {}
 
+  konva@9.3.20: {}
+
   locate-character@3.0.0: {}
 
   magic-string@0.30.17:
@@ -831,6 +849,11 @@ snapshots:
       typescript: 5.7.3
     transitivePeerDependencies:
       - picomatch
+
+  svelte-konva@0.3.1(konva@9.3.20)(svelte@5.27.0):
+    dependencies:
+      konva: 9.3.20
+      svelte: 5.27.0
 
   svelte@5.27.0:
     dependencies:

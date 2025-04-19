@@ -1,0 +1,4 @@
+base case (mvp):
+
+number generator (MAX, MIN, RATE): generates numbers between MAX and MIN at a rate of RATE per second. Keeps generating until buffer is full.
+buffer: where number generator places generated numbers. when the buffer is sorted from lowest to highest, the numbers are cleared from the buffer and a score is given based on the amount of sorted numbers, their magnitude and the variance.
